@@ -3,3 +3,6 @@
 datasets: 
   sf_xl_small: "/home/oliver/datasets_drive/vpr_datasets/sf_xl/small"
   eynsham: "/home/oliver/datasets_drive/vpr_datasets/eynsham"
+  svox: "/home/oliver/datasets_drive/vpr_datasets/svox"
+  msls: "/home/oliver/datasets_drive/vpr_datasets/msls"
+  pitts30k: "/home/oliver/datasets_drive/vpr_datasets/VPR-datasets-downloader/datasets/pitts30k"

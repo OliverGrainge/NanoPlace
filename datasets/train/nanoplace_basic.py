@@ -121,7 +121,7 @@ def compute_defaultconfig(dataset_folder, class_max_distance=15.0, command_args=
         "image_path": image_paths,
         "easting": easting,
         "northing": northing,
-        "class_ids": class_ids
+        "class_id": class_ids
     })
     
     # Store metadata in DataFrame attrs
@@ -129,6 +129,7 @@ def compute_defaultconfig(dataset_folder, class_max_distance=15.0, command_args=
         "dataset_folder": dataset_folder,
         "class_max_distance": class_max_distance,
         "num_images": len(image_paths),
+        "num_classes": len(np.unique(class_ids))
     }
     
     # Save to parquet file in configs folder

@@ -28,7 +28,7 @@ def analyze_spatial_dataset(df: pd.DataFrame,
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with columns: image_path, easting, northing, class_ids
+        DataFrame with columns: image_path, easting, northing, class_id
     config_dir : str
         Directory where the config files are saved (where analysis results will be saved)
     config_path : str, optional
@@ -51,7 +51,7 @@ def analyze_spatial_dataset(df: pd.DataFrame,
     
     # Basic dataset statistics
     n_images = len(df)
-    n_classes = df['class_ids'].nunique()
+    n_classes = df['class_id'].nunique()
     
     # Spatial extent
     easting_range = (df['easting'].min(), df['easting'].max())
@@ -64,7 +64,7 @@ def analyze_spatial_dataset(df: pd.DataFrame,
     }
     
     # Class statistics
-    class_counts = df['class_ids'].value_counts().sort_index()
+    class_counts = df['class_id'].value_counts().sort_index()
     class_stats = {
         'mean_images_per_class': class_counts.mean(),
         'median_images_per_class': class_counts.median(),
@@ -104,7 +104,7 @@ def analyze_spatial_dataset(df: pd.DataFrame,
     # 1. Spatial distribution with classes
     ax1 = plt.subplot(2, 3, 1)
     scatter = ax1.scatter(df['easting'], df['northing'], 
-                         c=df['class_ids'], cmap='tab20', 
+                         c=df['class_id'], cmap='tab20', 
                          alpha=0.6, s=10)
     ax1.set_xlabel('Easting (m)')
     ax1.set_ylabel('Northing (m)')
@@ -142,7 +142,7 @@ def analyze_spatial_dataset(df: pd.DataFrame,
     
     # 5. Class centroids
     ax5 = plt.subplot(2, 3, 5)
-    class_centroids = df.groupby('class_ids')[['easting', 'northing']].mean()
+    class_centroids = df.groupby('class_id')[['easting', 'northing']].mean()
     ax5.scatter(class_centroids['easting'], class_centroids['northing'], 
                c=class_centroids.index, cmap='tab20', s=30, alpha=0.8)
     ax5.set_xlabel('Easting (m)')
@@ -154,8 +154,8 @@ def analyze_spatial_dataset(df: pd.DataFrame,
     # 6. Distance statistics within classes
     ax6 = plt.subplot(2, 3, 6)
     max_distances = []
-    for class_id in df['class_ids'].unique():
-        class_data = df[df['class_ids'] == class_id]
+    for class_id in df['class_id'].unique():
+        class_data = df[df['class_id'] == class_id]
         if len(class_data) > 1:
             coords = class_data[['easting', 'northing']].values
             distances = []
@@ -253,7 +253,7 @@ def compare_spatial_configs(config_paths: list, labels: Optional[list] = None):
     
     # Classes per dataset
     ax2 = axes[0, 1]
-    n_classes = [df['class_ids'].nunique() for df in configs]
+    n_classes = [df['class_id'].nunique() for df in configs]
     ax2.bar(labels, n_classes)
     ax2.set_ylabel('Number of Classes')
     ax2.set_title('Total Classes per Dataset')
@@ -261,7 +261,7 @@ def compare_spatial_configs(config_paths: list, labels: Optional[list] = None):
     
     # Average images per class
     ax3 = axes[1, 0]
-    avg_per_class = [len(df) / df['class_ids'].nunique() for df in configs]
+    avg_per_class = [len(df) / df['class_id'].nunique() for df in configs]
     ax3.bar(labels, avg_per_class)
     ax3.set_ylabel('Average Images per Class')
     ax3.set_title('Average Images per Class')
@@ -292,7 +292,7 @@ def compare_spatial_configs(config_paths: list, labels: Optional[list] = None):
     
     for i, (label, df) in enumerate(zip(labels, configs)):
         n_img = len(df)
-        n_cls = df['class_ids'].nunique()
+        n_cls = df['class_id'].nunique()
         avg_cls = n_img / n_cls
         extent = extents[i]
         print(f"{label:<20} {n_img:<10} {n_cls:<10} {avg_cls:<12.1f} {extent:<15.2f}")
@@ -341,8 +341,8 @@ def export_class_summary(df: pd.DataFrame, output_path: str):
     
     class_summary = []
     
-    for class_id in sorted(df['class_ids'].unique()):
-        class_data = df[df['class_ids'] == class_id]
+    for class_id in sorted(df['class_id'].unique()):
+        class_data = df[df['class_id'] == class_id]
         
         # Basic stats
         n_images = len(class_data)

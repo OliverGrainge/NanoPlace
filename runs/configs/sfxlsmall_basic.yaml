@@ -1,0 +1,34 @@
+
+NanoPlaceLoader: 
+  config_path: "datasets/train/configs/nanoplace_basic/config.parquet" 
+  batch_size: 48
+  images_per_place: 4 
+  num_workers: 4
+  seed: 42
+
+ValLoader: 
+  val_set_names: ["pitts30k"]
+  batch_size: 32
+  num_workers: 4
+
+NanoPlaceModel: 
+  model_name: "resnet50gem"
+  descriptor_dim: 512
+  loss_name: "multisimilarity"
+  miner_name: "multisimilarity"
+
+Trainer: 
+  max_steps: 8000
+  val_check_interval: 100
+  precision: "bf16-mixed"
+  WandBLogger: 
+    project: "nanoplace" 
+    name: "basic" 
+  ModelCheckpoint: 
+    dirpath: "checkpoints/test/" 
+    filename: "model-{epoch:02d}-{val_recall@1_Pitts30k:.2f}"
+    monitor: "val_recall@1_Pitts30k"
+    mode: "max"
+    save_top_k: 1
+
+

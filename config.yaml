@@ -6,3 +6,4 @@ datasets:
   svox: "/home/oliver/datasets_drive/vpr_datasets/svox"
   msls: "/home/oliver/datasets_drive/vpr_datasets/msls"
   pitts30k: "/home/oliver/datasets_drive/vpr_datasets/VPR-datasets-downloader/datasets/pitts30k"
+  tokyo247: "/home/oliver/datasets_drive/vpr_datasets/VPR-datasets-downloader/datasets/tokyo247"

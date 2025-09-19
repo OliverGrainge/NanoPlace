@@ -9,7 +9,7 @@ def check_config(config: pd.DataFrame):
     Parameters
     ----------
     config : pd.DataFrame
-        Configuration DataFrame with columns: image_path, easting, northing, class_ids
+        Configuration DataFrame with columns: image_path, class_id
         and attrs containing metadata about the dataset.
         
     Raises
@@ -28,10 +28,10 @@ def check_config(config: pd.DataFrame):
     # Note: num_classes might not be set in your original code, so we'll compute it if missing
     if "num_classes" not in config.attrs or config.attrs["num_classes"] is None:
         print("Warning: num_classes not found in attrs, computing from data...")
-        config.attrs["num_classes"] = config["class_ids"].nunique()
+        config.attrs["num_classes"] = config["class_id"].nunique()
     
     # Check required columns exist
-    required_columns = ["image_path", "easting", "northing", "class_ids"]
+    required_columns = ["image_path", "class_id"]
     missing_columns = [col for col in required_columns if col not in config.columns]
     if missing_columns:
         raise ValueError(f"Required columns missing: {missing_columns}")
@@ -40,15 +40,8 @@ def check_config(config: pd.DataFrame):
     if len(config) == 0:
         raise ValueError("Configuration DataFrame is empty")
     
-    # Check data types
-    if not pd.api.types.is_numeric_dtype(config["easting"]):
-        raise ValueError("Column 'easting' must contain numeric values")
-    
-    if not pd.api.types.is_numeric_dtype(config["northing"]):
-        raise ValueError("Column 'northing' must contain numeric values")
-    
-    if not pd.api.types.is_numeric_dtype(config["class_ids"]):
-        raise ValueError("Column 'class_ids' must contain numeric values")
+    if not pd.api.types.is_numeric_dtype(config["class_id"]):
+        raise ValueError("Column 'class_id' must contain numeric values")
     
     # Check image_path is string-like (object dtype in pandas often contains strings)
     if not (pd.api.types.is_string_dtype(config["image_path"]) or 
@@ -71,7 +64,7 @@ def check_config(config: pd.DataFrame):
             f"actual number of rows ({len(config)})"
         )
     
-    actual_num_classes = config["class_ids"].nunique()
+    actual_num_classes = config["class_id"].nunique()
     if config.attrs["num_classes"] != actual_num_classes:
         raise ValueError(
             f"num_classes in attrs ({config.attrs['num_classes']}) does not match "
@@ -79,25 +72,19 @@ def check_config(config: pd.DataFrame):
         )
     
     # Additional sanity checks
-    if config["class_ids"].min() < 0:
-        raise ValueError("class_ids should not contain negative values")
+    if config["class_id"].min() < 0:
+        raise ValueError("class_id should not contain negative values")
     
-    # Check that class_ids are integers (even if stored as float)
-    if not np.all(config["class_ids"] == config["class_ids"].astype(int)):
-        raise ValueError("class_ids should be integer values")
+    # Check that class_id are integers (even if stored as float)
+    if not np.all(config["class_id"] == config["class_id"].astype(int)):
+        raise ValueError("class_id should be integer values")
     
     # Check image paths are not empty strings
     if (config["image_path"] == "").any():
         raise ValueError("image_path column contains empty strings")
     
-    print(f"✓ Configuration validation passed!")
-    print(f"  - Dataset: {config.attrs['dataset_folder']}")
-    print(f"  - Images: {config.attrs['num_images']}")
-    print(f"  - Classes: {config.attrs['num_classes']}")
-    print(f"  - Coordinate range: E[{config['easting'].min():.1f}, {config['easting'].max():.1f}], "
-          f"N[{config['northing'].min():.1f}, {config['northing'].max():.1f}]")
 
-    
+    print
 if __name__ == "__main__": 
     dsconfig = pd.read_parquet("datasets/train/configs/nanoplace_basic/config.parquet")
     check_config(dsconfig)

@@ -32,5 +32,8 @@ def get_val_dataset(dataset_name: str, **kwargs):
     elif dataset_name == "pitts30k":
         from .pitts30k import Pitts30k
         return Pitts30k(**kwargs)
+    elif dataset_name == "tokyo247":
+        from .tokyo247 import Tokyo247
+        return Tokyo247(**kwargs)
     else:
         raise ValueError(f"Dataset {dataset_name} not found")

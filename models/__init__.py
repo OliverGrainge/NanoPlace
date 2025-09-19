@@ -1,5 +1,6 @@
 import torch
 from torchvision import transforms
+from .base import NanoPlaceModel
 
 def get_model(model_name: str, pretrained: bool = True):
     """

@@ -142,7 +142,7 @@ class DatasetAnalyzer:
         class_ids = list(self.intra_class_sim.keys())
         sort_vals = np.array(self.intra_class_sim_dist["std"] if by_std_dist else self.intra_class_sim_dist["mean"])
         sorted_indices = np.argsort(sort_vals)
-        index_idx = np.linspace(0, len(sorted_indices) - 1, 6, dtype=int)
+        index_idx = np.linspace(0, len(sorted_indices) - 1, 4, dtype=int)
         selected_indices = sorted_indices[index_idx]
         classes = [class_ids[i] for i in selected_indices]
         
@@ -153,7 +153,8 @@ class DatasetAnalyzer:
         plot_intra_class_embedding(
             self.dataconfig, self.descriptors, plot_path=plot_path, 
             means=means_dict, stds=stds_dict, 
-            classes=classes
+            classes=classes,
+            max_images_per_class=8
         )
 
     def plot_inter_class_embedding(self): 

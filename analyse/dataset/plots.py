@@ -292,15 +292,17 @@ def plot_intra_class_embedding(
     plot_path: str,
     classes: Optional[List[int]] = None,
     means: Optional[List[float]] = None,
-    stds: Optional[List[float]] = None
+    stds: Optional[List[float]] = None,
+    max_images_per_class: int = 12
 ):
     """
-    Plot PCA projections of class embeddings with enhanced visual styling.
+    Plot PCA projections of class embeddings alongside sample images from each class.
+    Each row shows: [PCA plot for class] | [Sample images from class]
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with 'class_id' column.
+        DataFrame with 'class_id' and 'image_path' columns.
     descriptors : Dict[int, np.ndarray] or np.ndarray
         Dictionary mapping DataFrame indices to descriptor vectors (or a 2D array with row indices matching df).
     plot_path : str
@@ -311,12 +313,21 @@ def plot_intra_class_embedding(
         Optional list of mean similarities per class (for annotation).
     stds : Optional[List[float]]
         Optional list of std similarities per class (for annotation).
+    max_images_per_class : int, default 12
+        Maximum number of sample images to show per class.
     """
     import math
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
     from sklearn.decomposition import PCA
     import seaborn as sns
+    import os
+    import numpy as np
+    try:
+        from PIL import Image
+    except ImportError:
+        import matplotlib.image as mpimg
+        Image = None
     
     # Set modern style
     plt.style.use('default')
@@ -332,36 +343,37 @@ def plot_intra_class_embedding(
     else:
         classes = np.array(classes)
 
-    n_classes = len(classes)
-    n_cols = min(3, n_classes)
-    n_rows = math.ceil(n_classes / n_cols)
-
-    # Create figure with better proportions and spacing
-    fig = plt.figure(figsize=(5 * n_cols, 4.5 * n_rows), facecolor='white')
-    fig.suptitle('Class Embedding PCA Projections', fontsize=16, fontweight='bold', 
-                 y=0.95, color='#2C3E50')
-
-    # Collect all PCA results first to determine global axis limits
-    all_proj = []
-    per_class_proj = {}
-    for idx, class_id in enumerate(classes):
+    # Fit PCA on ALL embeddings first
+    all_indices = df.index
+    if isinstance(descriptors, dict):
+        all_descriptors = np.stack([descriptors[i] for i in all_indices])
+    else:
+        all_descriptors = descriptors[all_indices]
+    
+    # Fit PCA on all data
+    pca = PCA(n_components=2)
+    pca.fit(all_descriptors)
+    
+    # Project only the SELECTED classes to determine axis limits
+    selected_projections = []
+    for class_id in classes:
         class_idxs = df[df['class_id'] == class_id].index
         if isinstance(descriptors, dict):
             class_descriptors = np.stack([descriptors[i] for i in class_idxs])
         else:
             class_descriptors = descriptors[class_idxs]
-
-        if class_descriptors.shape[0] >= 2:
-            pca = PCA(n_components=2)
-            Y = pca.fit_transform(class_descriptors)
-            per_class_proj[class_id] = Y
-            all_proj.append(Y)
-
-    if all_proj:
-        all_proj = np.vstack(all_proj)
-        x_min, x_max = all_proj[:, 0].min(), all_proj[:, 0].max()
-        y_min, y_max = all_proj[:, 1].min(), all_proj[:, 1].max()
-        # Add more generous padding
+        
+        if class_descriptors.shape[0] >= 1:  # At least one sample
+            class_projected = pca.transform(class_descriptors)
+            selected_projections.append(class_projected)
+    
+    # Determine axis limits based only on selected classes
+    if selected_projections:
+        all_selected_projected = np.vstack(selected_projections)
+        x_min, x_max = all_selected_projected[:, 0].min(), all_selected_projected[:, 0].max()
+        y_min, y_max = all_selected_projected[:, 1].min(), all_selected_projected[:, 1].max()
+        
+        # Add generous padding
         pad_x = 0.1 * (x_max - x_min) if x_max != x_min else 1
         pad_y = 0.1 * (y_max - y_min) if y_max != y_min else 1
         xlim = (x_min - pad_x, x_max + pad_x)
@@ -369,112 +381,240 @@ def plot_intra_class_embedding(
     else:
         xlim, ylim = (-1, 1), (-1, 1)
 
-    # Create subplots with better spacing
-    gs = fig.add_gridspec(n_rows, n_cols, hspace=0.35, wspace=0.25)
+    # Create figure - calculate height to ensure PCA subplots are square
+    n_classes = len(classes)
+    fig_width = 16
+    
+    # Calculate required height for square PCA subplots
+    # With width_ratios [1, 3], PCA gets 1/4 of total width
+    pca_subplot_width = fig_width * (1 / (1 + 3))  # 1/4 of total width
+    
+    # For square PCA subplots, each row height should equal PCA subplot width
+    # Add some padding for titles and spacing
+    row_height = pca_subplot_width * 1.1  # 10% extra for padding
+    fig_height = max(8, row_height * n_classes + 2)  # +2 for title space
+    
+    fig = plt.figure(figsize=(fig_width, fig_height), facecolor='white')
+    
+    fig.suptitle('Class Embedding Analysis: PCA Projections & Sample Images', 
+                 fontsize=18, fontweight='bold', y=0.98, color='#2C3E50')
 
-    # Now plot each class with enhanced styling
+    # Add explained variance subtitle
+    explained_var = pca.explained_variance_ratio_
+    fig.text(0.5, 0.95, f'PC1 explains {explained_var[0]:.1%} • PC2 explains {explained_var[1]:.1%} of variance', 
+             ha='center', va='top', fontsize=12, color='#7F8C8D', style='italic')
+
+    # Create grid: 2 columns (PCA plot, Images), n_classes rows
+    # Width ratios ensure PCA subplot gets proper square space
+    gs = fig.add_gridspec(n_classes, 2, width_ratios=[1, 3], hspace=0.15, wspace=0.1,
+                          left=0.06, right=0.97, top=0.93, bottom=0.03)
+
+    # Process each class
     for idx, class_id in enumerate(classes):
-        row, col = divmod(idx, n_cols)
-        ax = fig.add_subplot(gs[row, col])
-        
-        # Set background color
-        ax.set_facecolor('#FAFAFA')
-        
-        if class_id not in per_class_proj:
-            # Styled message for insufficient data
-            ax.text(0.5, 0.5, "Insufficient Data\n(< 2 samples)", 
-                   ha='center', va='center', fontsize=12, 
-                   bbox=dict(boxstyle="round,pad=0.3", facecolor='#FFE5E5', 
-                            edgecolor='#FF9999', alpha=0.8),
-                   color='#CC0000')
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
+        class_idxs = df[df['class_id'] == class_id].index
+        if isinstance(descriptors, dict):
+            class_descriptors = np.stack([descriptors[i] for i in class_idxs])
         else:
-            Y = per_class_proj[class_id]
-            color = colors[idx % len(colors)]
+            class_descriptors = descriptors[class_idxs]
+
+        color = colors[idx % len(colors)]
+
+        # LEFT SUBPLOT: PCA Plot
+        ax_pca = fig.add_subplot(gs[idx, 0])
+        ax_pca.set_facecolor('#FAFAFA')
+        
+        if class_descriptors.shape[0] < 2:
+            # Styled message for insufficient data
+            ax_pca.text(0.5, 0.5, "Insufficient Data\n(< 2 samples)", 
+                       ha='center', va='center', fontsize=12, 
+                       bbox=dict(boxstyle="round,pad=0.3", facecolor='#FFE5E5', 
+                                edgecolor='#FF9999', alpha=1.0),
+                       color='#CC0000')
+            ax_pca.set_xlim(0, 1)
+            ax_pca.set_ylim(0, 1)
+        else:
+            # Project class descriptors using the global PCA
+            Y = pca.transform(class_descriptors)
             
             # Create scatter plot with enhanced styling
-            scatter = ax.scatter(Y[:, 0], Y[:, 1], 
-                               c=color, alpha=0.7, s=60, 
-                               edgecolors='white', linewidths=1.5,
-                               zorder=5)
+            scatter = ax_pca.scatter(Y[:, 0], Y[:, 1], alpha=0.8, s=80, 
+                                   color=color, linewidths=1.5, edgecolors='white',
+                                   zorder=5)
             
             # Add subtle density contours if enough points
             if len(Y) > 10:
                 try:
+                    from scipy.stats import gaussian_kde
+                    kde = gaussian_kde(Y.T)
                     x_contour = np.linspace(xlim[0], xlim[1], 50)
                     y_contour = np.linspace(ylim[0], ylim[1], 50)
                     X_contour, Y_contour = np.meshgrid(x_contour, y_contour)
-                    
-                    # Simple 2D histogram for contours
-                    from scipy.stats import gaussian_kde
-                    if len(Y) > 1:
-                        kde = gaussian_kde(Y.T)
-                        density = kde(np.vstack([X_contour.ravel(), Y_contour.ravel()]))
-                        density = density.reshape(X_contour.shape)
-                        ax.contour(X_contour, Y_contour, density, levels=3, 
-                                 colors=color, alpha=0.3, linewidths=1)
+                    density = kde(np.vstack([X_contour.ravel(), Y_contour.ravel()]))
+                    density = density.reshape(X_contour.shape)
+                    ax_pca.contour(X_contour, Y_contour, density, levels=3, 
+                                 colors=color, alpha=0.4, linewidths=1)
                 except:
-                    pass  # Skip contours if any error occurs
+                    pass
             
-            ax.set_xlim(xlim)
-            ax.set_ylim(ylim)
+            ax_pca.set_xlim(xlim)
+            ax_pca.set_ylim(ylim)
 
         # Enhanced title with statistics
-        if means is not None and stds is not None and class_id in per_class_proj:
+        if means is not None and stds is not None and class_descriptors.shape[0] >= 2:
             try:
                 mean_val = means[class_id] if isinstance(means, dict) else means[idx] if len(means) == n_classes else means[class_id]
                 std_val = stds[class_id] if isinstance(stds, dict) else stds[idx] if len(stds) == n_classes else stds[class_id]
-                title_text = f'Class {class_id}\n mean = {mean_val:.3f} • std = {std_val:.3f}'
+                title_text = f'Class {class_id}\nmean = {mean_val:.3f} • std = {std_val:.3f}'
             except:
                 title_text = f'Class {class_id}'
         else:
             title_text = f'Class {class_id}'
             
-        ax.set_title(title_text, fontsize=11, fontweight='bold', 
-                    color='#2C3E50', pad=15)
+        ax_pca.set_title(title_text, fontsize=12, fontweight='bold', 
+                        color='#2C3E50', pad=15)
 
         # Enhanced axis labels
-        ax.set_xlabel('PC1', fontsize=10, color='#34495E', fontweight='500')
-        ax.set_ylabel('PC2', fontsize=10, color='#34495E', fontweight='500')
+        ax_pca.set_xlabel('PC1', fontsize=10, color='#34495E', fontweight='500')
+        ax_pca.set_ylabel('PC2', fontsize=10, color='#34495E', fontweight='500')
         
         # Modern grid styling
-        ax.grid(True, linestyle='-', alpha=0.9, color='#BDC3C7', linewidth=0.8)
-        ax.set_axisbelow(True)
+        ax_pca.grid(True, linestyle='-', alpha=0.3, color='#BDC3C7', linewidth=0.8)
+        ax_pca.set_axisbelow(True)
         
         # Enhanced spines
-        for spine in ax.spines.values():
+        for spine in ax_pca.spines.values():
             spine.set_edgecolor('#BDC3C7')
             spine.set_linewidth(1.2)
         
-        # Style tick labels
-        ax.tick_params(colors='#7F8C8D', labelsize=9)
+        # Style tick labels and enforce square aspect ratio
+        ax_pca.tick_params(colors='#7F8C8D', labelsize=9)
+        ax_pca.set_aspect('equal', adjustable='box')
         
-        # Equal aspect ratio
-        ax.set_aspect('equal', adjustable='box')
-        
-        # Add subtle border effect
-        border = patches.Rectangle((xlim[0], ylim[0]), xlim[1]-xlim[0], ylim[1]-ylim[0],
-                                 linewidth=2, edgecolor='#E8E8E8', facecolor='none', zorder=1)
-        ax.add_patch(border)
+        # Ensure the subplot itself maintains square proportions
+        ax_pca.set_xlim(xlim)
+        ax_pca.set_ylim(ylim)
 
-    # Hide unused subplots with style
-    for idx in range(n_classes, n_rows * n_cols):
-        row, col = divmod(idx, n_cols)
-        ax = fig.add_subplot(gs[row, col])
-        ax.axis('off')
-        ax.set_facecolor('white')
+        # RIGHT SUBPLOT: Sample Images
+        ax_img = fig.add_subplot(gs[idx, 1])
+        ax_img.set_facecolor('white')
+        ax_img.axis('off')
+        
+        # Load and display sample images
+        if hasattr(df, 'attrs') and 'dataset_folder' in df.attrs and 'image_path' in df.columns:
+            dataset_folder = df.attrs['dataset_folder']
+            
+            # Sample images from this class
+            class_df = df[df['class_id'] == class_id]
+            n_samples = min(len(class_df), max_images_per_class)
+            
+            if n_samples > 0:
+                # Sample randomly if we have more images than max
+                if len(class_df) > max_images_per_class:
+                    sampled_df = class_df.sample(n=max_images_per_class, random_state=42)
+                else:
+                    sampled_df = class_df
+                
+                # Create a single seamless row collage with square images
+                images_to_display = []
+                square_size = 64  # All images will be this size (square)
+                
+                for img_idx, (_, row) in enumerate(sampled_df.iterrows()):
+                    try:
+                        image_path = os.path.join(dataset_folder, row['image_path'])
+                        
+                        if os.path.exists(image_path):
+                            # Load and process image to ensure square aspect ratio
+                            if Image is not None:
+                                img = Image.open(image_path)
+                                img = img.convert('RGB')
+                                
+                                # Center crop to square first, then resize
+                                width, height = img.size
+                                min_dim = min(width, height)
+                                left = (width - min_dim) // 2
+                                top = (height - min_dim) // 2
+                                right = left + min_dim
+                                bottom = top + min_dim
+                                
+                                img = img.crop((left, top, right, bottom))  # Now square
+                                img = img.resize((square_size, square_size), Image.Resampling.LANCZOS)
+                                images_to_display.append(np.array(img))
+                            else:
+                                # Fallback for matplotlib imread
+                                img_array = mpimg.imread(image_path)
+                                # Simple resize (may distort aspect ratio)
+                                from matplotlib.image import thumbnail
+                                img_resized = np.zeros((square_size, square_size, 3))
+                                # This is a simple fallback - PIL method above is preferred
+                                images_to_display.append(img_resized.astype(np.uint8))
+                                
+                    except Exception as e:
+                        print(f"Could not load image {row.get('image_path', 'unknown')}: {e}")
+                        continue
+                
+                # Create horizontal collage by concatenating images in 2 rows
+                if images_to_display:
+                    n_images = len(images_to_display)
+                    
+                    # Split images into two rows
+                    mid_point = (n_images + 1) // 2  # Ceiling division for top row
+                    top_row_images = images_to_display[:mid_point]
+                    bottom_row_images = images_to_display[mid_point:]
+                    
+                    # Create horizontal collages for each row
+                    top_collage = np.concatenate(top_row_images, axis=1)
+                    
+                    if bottom_row_images:
+                        bottom_collage = np.concatenate(bottom_row_images, axis=1)
+                        
+                        # Pad shorter row to match width if needed
+                        if top_collage.shape[1] != bottom_collage.shape[1]:
+                            max_width = max(top_collage.shape[1], bottom_collage.shape[1])
+                            
+                            if top_collage.shape[1] < max_width:
+                                padding = max_width - top_collage.shape[1]
+                                pad_array = np.ones((top_collage.shape[0], padding, 3), dtype=top_collage.dtype) * 255  # White padding
+                                top_collage = np.concatenate([top_collage, pad_array], axis=1)
+                            
+                            if bottom_collage.shape[1] < max_width:
+                                padding = max_width - bottom_collage.shape[1]
+                                pad_array = np.ones((bottom_collage.shape[0], padding, 3), dtype=bottom_collage.dtype) * 255  # White padding
+                                bottom_collage = np.concatenate([bottom_collage, pad_array], axis=1)
+                        
+                        # Stack the two rows vertically
+                        full_collage = np.concatenate([top_collage, bottom_collage], axis=0)
+                    else:
+                        # Only one row needed
+                        full_collage = top_collage
+                    
+                    # Display the 2-row collage with proper aspect ratio
+                    ax_img.imshow(full_collage, aspect='equal')
+                    ax_img.set_xlim(0, full_collage.shape[1])
+                    ax_img.set_ylim(full_collage.shape[0], 0)  # Flip Y axis for correct orientation
+                    ax_img.axis('off')
+                    
+                    # Add title for image collage
+                    ax_img.text(0.5, 1.02, f'{len(images_to_display)} Sample Images', 
+                               ha='center', va='bottom', transform=ax_img.transAxes,
+                               fontsize=11, fontweight='bold', color='#2C3E50')
+            else:
+                ax_img.text(0.5, 0.5, 'No Images Available', 
+                           ha='center', va='center', transform=ax_img.transAxes,
+                           fontsize=12, color='#7F8C8D')
+        else:
+            ax_img.text(0.5, 0.5, 'Image path not configured\n(need df.attrs["dataset_folder"] and "image_path" column)', 
+                       ha='center', va='center', transform=ax_img.transAxes,
+                       fontsize=10, color='#7F8C8D')
 
     # Add a subtle footer
-    fig.text(0.99, 0.01, f'Generated with {n_classes} classes • PCA Dimensionality Reduction', 
-             ha='right', va='bottom', fontsize=8, color='#95A5A6', style='italic')
+    fig.text(0.99, 0.01, f'Generated with {n_classes} classes • Global PCA fitted on all {len(all_descriptors)} embeddings', 
+             ha='right', va='bottom', fontsize=10, color='#95A5A6', style='italic')
 
     # Save with high quality
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', 
                 facecolor='white', edgecolor='none', 
-                metadata={'Title': 'Class Embedding PCA Projections'})
+                metadata={'Title': 'Class Embedding Analysis'})
     plt.close()
-    
 
 
 def plot_inter_class_embedding(dataconfig: pd.DataFrame, descriptors: np.ndarray, 
@@ -526,7 +666,7 @@ def plot_inter_class_embedding(dataconfig: pd.DataFrame, descriptors: np.ndarray
     # Smart color and styling for many classes
     if n_classes > 50:
         colors = plt.cm.hsv(np.linspace(0, 1, n_classes))
-        point_size = max(5, 20 - n_classes//50)  # Smaller points for more classes
+        point_size = max(5, 20 - n_classes//50) * 1.5  # Smaller points for more classes
         point_alpha = max(0.1, 0.4 - n_classes/5000)  # More transparent for more classes
         ellipse_alpha = max(0.05, 0.2 - n_classes/10000)
         show_legend = False

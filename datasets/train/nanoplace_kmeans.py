@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
 
     # Analyse the dataset 
-    analyse_dataset = DatasetAnalyzer(config_path, max_num_classes=500)
+    analyse_dataset = DatasetAnalyzer(config_path)
     analyse_dataset.compute_descriptors() 
     analyse_dataset.get_intra_class_sim()
     analyse_dataset.get_intra_class_sim_dist()

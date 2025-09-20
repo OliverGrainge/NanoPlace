@@ -13,8 +13,8 @@ class DatasetAnalyzer:
     
     def __init__(self, dataconfig_path: str, model_name: str = "cosplace", 
                  batch_size: int = 32, num_workers: int = 8, pbar: bool = True, max_num_classes: Optional[int] = None): 
-        self.dataconfig = pd.read_parquet(dataconfig_path)
         self.dataconfig_path = dataconfig_path
+        self.dataconfig = pd.read_parquet(dataconfig_path)
         self.dataset_folder = self.dataconfig.attrs["dataset_folder"]
         self.eval_model = get_model(model_name, pretrained=True)
         self.batch_size = batch_size
@@ -38,8 +38,6 @@ class DatasetAnalyzer:
             sampled_classes = np.random.choice(unique_classes, size=min(self.max_num_classes, len(unique_classes)), replace=False)
             self.dataconfig = self.dataconfig[self.dataconfig['class_id'].isin(sampled_classes)].reset_index(drop=True)
 
-
-
     def compute_descriptors(self): 
         """Compute visual descriptors for all images in the dataset."""
         paths = [os.path.join(self.dataset_folder, path) for path in self.dataconfig["image_path"].to_numpy()]
@@ -49,7 +47,21 @@ class DatasetAnalyzer:
             batch_size=self.batch_size, num_workers=self.num_workers, pbar=self.pbar
         )
         return self.descriptors
-        
+    
+    def compute_class_descriptors(self): 
+        if self.descriptors is None:
+            self.compute_descriptors()
+        unique_class_ids = self.dataconfig['class_id'].unique()
+        class_desc = np.zeros((len(unique_class_ids), self.descriptors.shape[1]))
+        valid_class_indices = []
+        for idx, class_id in enumerate(unique_class_ids):
+            class_mask = self.dataconfig['class_id'] == class_id
+            class_descriptors = self.descriptors[class_mask]
+            class_size = len(class_descriptors)
+            class_desc = class_descriptors.mean(dim=1) 
+            class_desc[idx] = class_desc
+        return class_desc, valid_class_indices
+    
     def get_intra_class_sim(self): 
         """Compute intra-class similarity statistics."""
         self.intra_class_sim = get_intra_class_sim(self.dataconfig, self.descriptors)

@@ -22,14 +22,6 @@ def check_config(config: pd.DataFrame):
     if "dataset_folder" not in config.attrs or config.attrs["dataset_folder"] is None:
         raise ValueError("Dataset folder is not set in DataFrame attrs")
     
-    if "num_images" not in config.attrs or config.attrs["num_images"] is None:
-        raise ValueError("Number of images is not set in DataFrame attrs")
-    
-    # Note: num_classes might not be set in your original code, so we'll compute it if missing
-    if "num_classes" not in config.attrs or config.attrs["num_classes"] is None:
-        print("Warning: num_classes not found in attrs, computing from data...")
-        config.attrs["num_classes"] = config["class_id"].nunique()
-    
     # Check required columns exist
     required_columns = ["image_path", "class_id"]
     missing_columns = [col for col in required_columns if col not in config.columns]
@@ -56,20 +48,6 @@ def check_config(config: pd.DataFrame):
     # Check for unique indices (each image has unique ID)
     if not config.index.is_unique:
         raise ValueError("DataFrame index must be unique (each image needs a unique ID)")
-    
-    # Validate attrs values make sense
-    if config.attrs["num_images"] != len(config):
-        raise ValueError(
-            f"num_images in attrs ({config.attrs['num_images']}) does not match "
-            f"actual number of rows ({len(config)})"
-        )
-    
-    actual_num_classes = config["class_id"].nunique()
-    if config.attrs["num_classes"] != actual_num_classes:
-        raise ValueError(
-            f"num_classes in attrs ({config.attrs['num_classes']}) does not match "
-            f"actual number of unique classes ({actual_num_classes})"
-        )
     
     # Additional sanity checks
     if config["class_id"].min() < 0:

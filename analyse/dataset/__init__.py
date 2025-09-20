@@ -99,7 +99,7 @@ class DatasetAnalyzer:
         if self.intra_class_sim is None:
             self.get_intra_class_similarity()
 
-        plot_path = self.dataconfig_path.parent / "intra_class" / "class_sim_heatmap.png"
+        plot_path = self.dataconfig_path.parent / "intra_class" / "class_sim_heatmap.png
         os.makedirs(plot_path.parent, exist_ok=True)
 
         if self.intra_class_sim_dist is None:

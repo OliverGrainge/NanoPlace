@@ -1,11 +1,14 @@
 from typing import Tuple
-from tqdm import tqdm
+
+import faiss
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from torch.utils.data import DataLoader
-import faiss
+from tqdm import tqdm
+
 from datasets.val.base import ValDataset
+
 
 def _l2_normalize_rows(x: np.ndarray, eps: float = 1e-12) -> np.ndarray:
     """Row-wise L2 normalize with numerical safety."""
@@ -72,7 +75,12 @@ def compute_descriptors(
 
     # inference_mode gives a bit more speed than no_grad and enforces no autograd state.
     with torch.inference_mode():
-        iterator = tqdm(dataloader, disable=not pbar, total=len(dataloader), desc="Computing Embeddings")
+        iterator = tqdm(
+            dataloader,
+            disable=not pbar,
+            total=len(dataloader),
+            desc="Computing Embeddings",
+        )
         for images, idx in iterator:
             images = images.to(device, non_blocking=True)
 
@@ -123,7 +131,9 @@ def match_cosine(
 
     # Ensure float32 for FAISS and L2-normalize just in case.
     q = _l2_normalize_rows(np.asarray(query_descriptors, dtype=np.float32, order="C"))
-    d = _l2_normalize_rows(np.asarray(database_descriptors, dtype=np.float32, order="C"))
+    d = _l2_normalize_rows(
+        np.asarray(database_descriptors, dtype=np.float32, order="C")
+    )
 
     index = _faiss_ip_index(dim=q.shape[1], use_gpu=use_gpu)
     index.add(d)  # (Nd, D)
@@ -131,7 +141,9 @@ def match_cosine(
     return indices, scores
 
 
-def correct_matches(matches: np.ndarray, ground_truth: np.ndarray, k: int = 1) -> np.ndarray:
+def correct_matches(
+    matches: np.ndarray, ground_truth: np.ndarray, k: int = 1
+) -> np.ndarray:
     """
     For each query i, return True if any of the top-k matches[i] appear in ground_truth[i].
 
@@ -146,4 +158,7 @@ def correct_matches(matches: np.ndarray, ground_truth: np.ndarray, k: int = 1) -
     topk = matches[:, :k]
     # Ground truth may be ragged (list of arrays) or dense ndarray per row.
     # np.isin is row-wise here, so a tiny loop is still the cleanest/most correct.
-    return np.array([np.any(np.isin(topk[i], ground_truth[i])) for i in range(len(topk))], dtype=bool)
+    return np.array(
+        [np.any(np.isin(topk[i], ground_truth[i])) for i in range(len(topk))],
+        dtype=bool,
+    )

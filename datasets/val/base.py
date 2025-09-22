@@ -1,10 +1,11 @@
-import torch 
-from torch.utils.data import Dataset
 import dataclasses
+
 import numpy as np
-from torchvision import transforms
+import torch
 from PIL import Image
 from sklearn.neighbors import NearestNeighbors
+from torch.utils.data import Dataset
+from torchvision import transforms
 
 
 def read_utm_coordinates(image_paths: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -28,7 +29,7 @@ def read_utm_coordinates(image_paths: np.ndarray) -> tuple[np.ndarray, np.ndarra
     return easting, northing
 
 
-def compute_ground_truth(query_paths, database_paths, radius=25.0): 
+def compute_ground_truth(query_paths, database_paths, radius=25.0):
     """
     For each query, find all database images within the given radius (in meters).
     Returns a list of arrays, where each array contains the indices of database images within the radius for that query.
@@ -41,31 +42,43 @@ def compute_ground_truth(query_paths, database_paths, radius=25.0):
     indices = nbrs.radius_neighbors(query_utm, return_distance=False)
     ground_truth = indices
     return ground_truth
-    
+
 
 class ValDataset(Dataset):
-    def __init__(self, queries_paths: np.ndarray, database_paths: np.ndarray, ground_truth: np.ndarray, transform=None):
+    def __init__(
+        self,
+        queries_paths: np.ndarray,
+        database_paths: np.ndarray,
+        ground_truth: np.ndarray,
+        transform=None,
+    ):
         self.queries_paths = queries_paths
         self.database_paths = database_paths
         self.image_paths = np.concatenate([self.queries_paths, self.database_paths])
         self.queries_num = len(self.queries_paths)
         self.database_num = len(self.database_paths)
         self.images_num = self.queries_num + self.database_num
-        
+
         self.ground_truth = ground_truth
-        self.transform = transform if transform is not None else self._default_transform()
+        self.transform = (
+            transform if transform is not None else self._default_transform()
+        )
 
     def _default_transform(self):
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        transform = transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
+            ]
+        )
         return transform
 
     def __len__(self):
         return self.images_num
-    
+
     def __getitem__(self, idx):
         image = Image.open(self.image_paths[idx]).convert("RGB")
         image = self.transform(image)

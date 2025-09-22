@@ -1,10 +1,7 @@
 import numpy as np
 
-def compute_recall(
-    matches: np.ndarray, 
-    ground_truth: np.ndarray, 
-    k: int = 1
-) -> float:
+
+def compute_recall(matches: np.ndarray, ground_truth: np.ndarray, k: int = 1) -> float:
     """
     Compute recall@k for a set of predictions against ground truth.
 

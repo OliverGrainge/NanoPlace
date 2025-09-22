@@ -1,6 +1,8 @@
 import torch
 from torchvision import transforms
+
 from .base import NanoPlaceModel
+
 
 def get_model(model_name: str, pretrained: bool = True):
     """
@@ -21,15 +23,20 @@ def get_model(model_name: str, pretrained: bool = True):
             "gmberton/cosplace",
             "get_trained_model",
             backbone="ResNet50",
-            fc_output_dim=2048
+            fc_output_dim=2048,
         )
         model.descriptor_dim = 2048
-        model.transform = transforms.Compose([
-            transforms.Resize((512, 512)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        model.transform = transforms.Compose(
+            [
+                transforms.Resize((512, 512)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
+            ]
+        )
         return model
     else:
-        raise ValueError(f"Model '{model_name}' with pretrained={pretrained} is not supported.")
-
+        raise ValueError(
+            f"Model '{model_name}' with pretrained={pretrained} is not supported."
+        )

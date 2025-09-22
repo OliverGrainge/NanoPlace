@@ -67,6 +67,7 @@ def load_trainer(config: DictConfig):
         max_steps=config.max_steps,
         val_check_interval=config.val_check_interval,
         precision=config.precision,
+        check_val_every_n_epoch=None,
         callbacks=[Checkpoint],
         logger=[Logger],
     )

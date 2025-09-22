@@ -19,7 +19,7 @@ from datasets.train.pipeline import (
     IntraClassMADFilter,
     MinNumPerClass,
     NanoPlaceDataPipeline,
-    RandomClassFilter,
+    RandomFilter,
 )
 
 
@@ -32,8 +32,8 @@ def get_curation_step(name: str, **kwargs):
         return IntraClassMADFilter(**kwargs)
     elif name == "minnumperclass":
         return MinNumPerClass(**kwargs)
-    elif name == "randomclassfilter":
-        return RandomClassFilter(**kwargs)
+    elif name == "randomfilter":
+        return RandomFilter(**kwargs)
     else:
         raise ValueError(f"Curation step {name} not found")
 

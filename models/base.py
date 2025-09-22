@@ -71,7 +71,7 @@ class NanoPlaceModel(pl.LightningModule):
         num_queries = self.trainer.val_dataloaders[dataset_idx].dataset.queries_num
         query_desc = desc[:num_queries]
         database_desc = desc[num_queries:]
-        matches, scores = match_cosine(query_desc, database_desc)
+        matches, scores = match_cosine(query_desc, database_desc, k=k)
         recall = compute_recall(
             matches, self.trainer.val_dataloaders[dataset_idx].dataset.ground_truth, k
         )

@@ -13,7 +13,7 @@ from datasets.train.pipeline.base import CurationStep
 from datasets.train.pipeline.embeddings import Embeddings
 from datasets.train.pipeline.intraclassmadfilter import IntraClassMADFilter
 from datasets.train.pipeline.minnumperclass import MinNumPerClass
-from datasets.train.pipeline.randomfilter import RandomClassFilter
+from datasets.train.pipeline.randomfilter import RandomFilter
 from datasets.train.utils import read_gmberton_utm, read_images
 
 

@@ -1,0 +1,18 @@
+save_dir: /home/oliver/github/NanoPlace/datasets/train/datasets/gsvcities_10
+
+image_dir: /home/oliver/datasets_drive/vpr_datasets/gsv-cities
+
+debug: False
+
+curation_steps:
+  minnumperclass: 
+    min_num_per_class: 4
+  randomclassfilter: 
+    ratio: 0.1
+
+analyzer_steps: 
+  classsamples:
+  classcounts:
+
+
+

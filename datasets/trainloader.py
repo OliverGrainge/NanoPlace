@@ -1,5 +1,4 @@
 import pytorch_lightning as pl
-from datasets.train import check_config
 import os
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
@@ -239,8 +238,7 @@ class NanoPlaceLoader(pl.LightningDataModule):
         self.seed = seed
         
         # Load and validate config
-        self.config = pd.read_parquet(config_path)
-        check_config(self.config)
+        self.config = pd.read_pickle(config_path)
         
         # Extract metadata
         self.dataset_folder = getattr(self.config, 'attrs', {}).get('dataset_folder', '')

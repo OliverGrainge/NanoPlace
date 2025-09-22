@@ -3,6 +3,9 @@ from omegaconf import OmegaConf, DictConfig
 from datasets import NanoPlaceLoader, ValLoader
 from models import NanoPlaceModel
 import pytorch_lightning as pl
+import torch 
+
+torch.set_float32_matmul_precision("high")
 
 def load_config_from_argv():
     """

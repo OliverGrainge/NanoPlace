@@ -72,7 +72,7 @@ def compute_descriptors(
 
     # inference_mode gives a bit more speed than no_grad and enforces no autograd state.
     with torch.inference_mode():
-        iterator = tqdm(dataloader, disable=not pbar, total=len(dataloader))
+        iterator = tqdm(dataloader, disable=not pbar, total=len(dataloader), desc="Computing Embeddings")
         for images, idx in iterator:
             images = images.to(device, non_blocking=True)
 

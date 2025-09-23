@@ -1,0 +1,95 @@
+from .base import CurationStep 
+import pandas as pd 
+import numpy as np 
+from tqdm import tqdm 
+from typing import Union
+
+class GreedyIntraClassSelection(CurationStep):
+    def __init__(self, num_samples_per_class: int = 4):
+        super().__init__()
+        self.num_samples_per_class = num_samples_per_class
+
+    def __call__(self, dataconfig: pd.DataFrame, descriptors: np.memmap):
+        selected_indices = []
+        
+        for class_id in tqdm(dataconfig["class_id"].unique(), desc="Selecting diverse class samples"): 
+            class_mask = dataconfig["class_id"] == class_id
+            class_positions = np.where(class_mask)[0]  # Get position-based indices
+            class_descriptors = descriptors[class_positions]
+            
+            if len(class_descriptors) <= self.num_samples_per_class:
+                # If class has fewer or equal samples than needed, take all
+                selected_indices.extend(class_positions.tolist())
+            else:
+                # Convert similarity to distance (assuming normalized descriptors)
+                sim_matrix = np.dot(class_descriptors, class_descriptors.T)
+                distance_matrix = 1 - sim_matrix  # Convert similarity to distance
+                
+                # Select diverse samples using greedy algorithm
+                diverse_local_indices = self._greedy_diverse_selection(
+                    distance_matrix, self.num_samples_per_class
+                )
+                
+                # Convert local indices back to position-based indices
+                diverse_positions = class_positions[diverse_local_indices]
+                selected_indices.extend(diverse_positions.tolist())
+        
+        # Filter dataconfig and descriptors to keep only selected samples
+        selected_indices = np.array(selected_indices)
+        filtered_dataconfig = dataconfig.iloc[selected_indices].reset_index(drop=True)
+        filtered_descriptors = descriptors[selected_indices]
+        
+        return filtered_dataconfig, filtered_descriptors
+    
+    def _greedy_diverse_selection(self, distance_matrix, n_select):
+        """
+        Greedy algorithm to select n_select most diverse samples.
+        Selects samples that are furthest apart from each other.
+        
+        Args:
+            distance_matrix: Square matrix of pairwise distances
+            n_select: Number of samples to select
+            
+        Returns:
+            List of selected indices (local to the distance matrix)
+        """
+        n_samples = len(distance_matrix)
+        if n_samples <= n_select:
+            return list(range(n_samples))
+        
+        selected = []
+        remaining = list(range(n_samples))
+        
+        # Start with the sample that has maximum average distance to all others
+        # This finds the most "central" diverse sample
+        avg_distances = np.mean(distance_matrix, axis=1)
+        first_idx = np.argmax(avg_distances)
+        selected.append(first_idx)
+        remaining.remove(first_idx)
+        
+        # Greedily select remaining samples
+        for _ in range(n_select - 1):
+            if not remaining:
+                break
+                
+            best_idx = None
+            best_min_dist = -1
+            
+            # For each remaining sample, find its minimum distance to any selected sample
+            for idx in remaining:
+                min_dist_to_selected = min(distance_matrix[idx][s] for s in selected)
+                
+                # Choose the sample with maximum minimum distance 
+                # (i.e., furthest from its nearest selected neighbor)
+                if min_dist_to_selected > best_min_dist:
+                    best_min_dist = min_dist_to_selected
+                    best_idx = idx
+            
+            if best_idx is not None:
+                selected.append(best_idx)
+                remaining.remove(best_idx)
+        
+        return selected
+
+    def name(self) -> str:
+        return "GreedyDiverseClassSelection(num_samples_per_class=" + str(self.num_samples_per_class) + ")"

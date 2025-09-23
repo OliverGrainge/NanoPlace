@@ -1,3 +1,4 @@
+from ast import MatchMapping
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -63,8 +64,7 @@ class Embeddings(CurationStep):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pbar=self.pbar,
-            mmap=True,
-            feature_path=self.mmap_path
+            mmap_path=self.mmap_path
         )
         descriptors.flush()
         return dataconfig, descriptors

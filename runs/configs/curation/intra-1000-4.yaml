@@ -10,7 +10,7 @@ curation_steps:
   Embeddings:
     model_name: "cosplace"
     num_workers: 6
-    batch_size: 64
+    batch_size: 128
     mmap_path: /home/oliver/github/NanoPlace/datasets/train/datasets/features_store/gsvcities-cosplace.dat
   RandomClassSelection: 
     n_classes: 1000

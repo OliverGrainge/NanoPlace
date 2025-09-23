@@ -5,6 +5,8 @@ image_dir: /home/oliver/datasets_drive/vpr_datasets/gsv-cities
 debug: False
 
 curation_steps:
+  minperclass: 
+    n_instances: 4
   randomclassselection: 
     n_classes: 1000
     seed: 42
@@ -13,8 +15,7 @@ curation_steps:
   randominstanceselection: 
     n_instances: 4
     seed: 42
-  minperclass: 
-    n_instances: 4
+
 
 analyzer_steps: 
   classsamples:

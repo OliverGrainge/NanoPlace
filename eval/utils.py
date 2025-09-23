@@ -46,42 +46,41 @@ def _l2_normalize_rows_inplace(arr):
 def compute_descriptors(
     model: nn.Module,
     dataset: ValDataset,
+    mmap_path: str,
     desc_dtype: np.dtype,
     batch_size: int = 32,
     num_workers: int = 4,
     pbar: bool = True,
-    mmap: bool = False,
-    feature_path: str = None 
+   
 ) -> np.ndarray:
     
     n = len(dataset)
 
-    if mmap: 
-        os.makedirs(os.path.dirname(feature_path), exist_ok=True)
-        
-        # Check if memory map file already exists and try to use it
-        if os.path.exists(feature_path):
-            try:
-                # Try to open existing memory map
-                existing_descriptors = np.memmap(feature_path, dtype=desc_dtype, mode="r")
-                
-                # Check if shape matches what we expect
-                expected_shape = (n, model.descriptor_dim)
-                if existing_descriptors.shape == expected_shape:
-                    print(f"Found existing memory map at {feature_path} with correct shape {expected_shape}")
-                    return existing_descriptors
-                else:
-                    print(f"Existing memory map shape {existing_descriptors.shape} doesn't match expected {expected_shape}")
-                    print("Creating new memory map...")
-            except Exception as e:
-                print(f"Error reading existing memory map: {e}")
+    if os.path.exists(mmap_path):
+        try:
+            # Try to open existing memory map with expected shape
+            expected_shape = (n, model.descriptor_dim)
+            existing_descriptors = np.memmap(mmap_path, dtype=desc_dtype, mode="r", 
+                                            shape=expected_shape)
+            
+            # Check if file size matches expected size
+            expected_size = np.prod(expected_shape) * np.dtype(desc_dtype).itemsize
+            actual_size = os.path.getsize(mmap_path)
+            
+            if actual_size == expected_size:
+                print(f"Found existing memory map at {mmap_path} with correct shape {expected_shape}")
+                return existing_descriptors
+            else:
+                print(f"Existing memory map size {actual_size} doesn't match expected {expected_size}")
                 print("Creating new memory map...")
-        
-        # Create new memory map (either file doesn't exist or had issues)
-        descriptors = np.memmap(feature_path, dtype=desc_dtype, mode="w+", 
-                               shape=(n, model.descriptor_dim))
-    else:
-        descriptors = np.zeros((n, model.descriptor_dim), dtype=desc_dtype)
+        except Exception as e:
+            print(f"Error reading existing memory map: {e}")
+            print("Creating new memory map...")
+    
+    # Always create a memory map (whether file exists or not)
+    os.makedirs(os.path.dirname(mmap_path), exist_ok=True)
+    descriptors = np.memmap(mmap_path, dtype=desc_dtype, mode="w+", 
+                           shape=(n, model.descriptor_dim))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device).eval()
@@ -119,16 +118,13 @@ def compute_descriptors(
             batch_desc = _as_numpy(out, desc_dtype)
             descriptors[idx.numpy()] = batch_desc
 
-    if mmap:
-        # Apply normalization in-place to preserve in file
-        _l2_normalize_rows_inplace(descriptors)  # Must modify in-place!
-        descriptors.flush()
-        # Reopen as read-only
-        descriptors = np.memmap(feature_path, dtype=desc_dtype, mode="r", 
-                               shape=(n, model.descriptor_dim))
-    else:
-        descriptors = _l2_normalize_rows(descriptors)
-    
+    # Apply normalization in-place to preserve in file
+    _l2_normalize_rows_inplace(descriptors)  # Must modify in-place!
+    descriptors.flush()
+    # Reopen as read-only
+    descriptors = np.memmap(mmap_path, dtype=desc_dtype, mode="r", 
+                            shape=(n, model.descriptor_dim))
+
     return descriptors
 
 

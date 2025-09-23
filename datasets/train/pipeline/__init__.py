@@ -162,6 +162,8 @@ class NanoPlaceDataPipeline(ABC):
     def setup_dataconfig(self) -> pd.DataFrame:
         csv_dir = os.path.join(self.image_dir, "Dataframes")
         csv_paths = [os.path.join(csv_dir, f) for f in os.listdir(csv_dir)]
+        csv_paths.sort()
+        csv_paths = csv_paths[:1]
         dataconfig = self.__getdataframes(csv_paths)
         # dataconfig['easting'] = dataconfig.apply(lambda row: lat_lon_to_utm(row)[0], axis=1)
         # dataconfig['northing'] = dataconfig.apply(lambda row: lat_lon_to_utm(row)[1], axis=1)

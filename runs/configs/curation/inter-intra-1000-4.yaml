@@ -1,0 +1,24 @@
+save_dir: /home/oliver/github/NanoPlace/datasets/train/datasets/intra-1000-4
+
+image_dir: /home/oliver/datasets_drive/vpr_datasets/gsv-cities
+
+debug: False
+
+curation_steps:
+  minperclass: 
+    n_instances: 4
+  Embeddings:
+    model_name: "cosplace"
+    num_workers: 6
+    batch_size: 64
+    mmap_path: /home/oliver/github/NanoPlace/datasets/train/datasets/features_store/gsvcities-cosplace.dat
+  ConfusableClassSelection: 
+    n_classes: 1000
+  GreedyIntraClassSelection:
+    n_instances: 4
+
+
+analyzer_steps: 
+  classsamples:
+  classcounts:
+

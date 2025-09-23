@@ -1,0 +1,24 @@
+save_dir: /home/oliver/github/NanoPlace/datasets/train/datasets/random-1000-4
+
+image_dir: /home/oliver/datasets_drive/vpr_datasets/gsv-cities
+
+debug: False
+
+curation_steps:
+  randomclassselection: 
+    n_classes: 1000
+    seed: 42
+  minperclass: 
+    n_instances: 4
+  randominstanceselection: 
+    n_instances: 4
+    seed: 42
+  minperclass: 
+    n_instances: 4
+
+analyzer_steps: 
+  classsamples:
+  classcounts:
+
+
+

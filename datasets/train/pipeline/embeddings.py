@@ -33,6 +33,7 @@ class Embeddings(CurationStep):
         batch_size: int = 32,
         num_workers: int = 4,
         pbar: bool = True,
+        mmap_path: str = None 
     ):
         super().__init__()  # Call parent constructor
 
@@ -42,28 +43,31 @@ class Embeddings(CurationStep):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pbar = pbar
+        self.mmap_path = mmap_path
 
     def __call__(
         self, dataconfig: pd.DataFrame, descriptors: Optional[np.ndarray] = None
     ) -> Tuple[pd.DataFrame, np.ndarray]:
-        if descriptors is not None:
-            return dataconfig, descriptors
-        else:
-            self.dataset = ImageDataset(
-                dataconfig["image_path"].tolist(), self.model.transform
-            )
-            dataset = ImageDataset(
-                dataconfig["image_path"].tolist(), self.model.transform
-            )
-            descriptors = compute_descriptors(
-                self.model,
-                dataset,
-                desc_dtype=np.float16,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                pbar=self.pbar,
-            )
-            return dataconfig, descriptors
+        dataconfig = dataconfig.reset_index(drop=True)
+        dataconfig["image_id"] = np.arange(len(dataconfig))
+        self.dataset = ImageDataset(
+            dataconfig["image_path"].tolist(), self.model.transform
+        )
+        dataset = ImageDataset(
+            dataconfig["image_path"].tolist(), self.model.transform
+        )
+        descriptors = compute_descriptors(
+            self.model,
+            dataset,
+            desc_dtype=np.float16,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pbar=self.pbar,
+            mmap=True,
+            feature_path=self.mmap_path
+        )
+        descriptors.flush()
+        return dataconfig, descriptors
 
     def name(self) -> str:
         return "Embeddings(model_name={self.distance_threshold})"

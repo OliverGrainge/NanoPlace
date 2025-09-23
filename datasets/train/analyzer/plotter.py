@@ -281,81 +281,100 @@ def plot_class_samples(stats: dict, plotting_dir: str):
 
 def plot_class_counts(stats: dict, plotting_dir: str):
     """
-    Alternative version that shows both bar chart and histogram distribution
+    Shows class distribution with clear summary statistics
     """
-    # if "class_counts" not in stats.keys():
-    #     return
-
     class_counts = stats["class_counts"]
     counts = list(class_counts.values())
     class_ids = list(class_counts.keys())
-
-    # Create subplot with secondary axis
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[2, 1])
-
-    # Main bar plot (top)
-    bars = ax1.bar(class_ids, counts, alpha=0.7, color="skyblue", edgecolor="navy")
-
-    # Statistical lines
+    
+    # Calculate summary statistics
+    num_classes = len(class_counts)
+    total_samples = sum(counts)
     mean_count = np.mean(counts)
     median_count = np.median(counts)
-    ax1.axhline(
-        y=mean_count,
-        color="red",
-        linestyle="-",
-        linewidth=2,
-        label=f"Mean: {mean_count:.1f}",
-    )
-    ax1.axhline(
-        y=median_count,
-        color="green",
-        linestyle="--",
-        linewidth=2,
-        label=f"Median: {median_count:.1f}",
-    )
-
-    ax1.set_xlabel("Class ID", fontsize=12)
-    ax1.set_ylabel("Number of Images", fontsize=12)
-    ax1.set_title(
-        "Class Distribution: Individual Classes", fontsize=14, fontweight="bold"
-    )
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
-
-    # Histogram of counts (bottom)
-    ax2.hist(
+    std_count = np.std(counts)
+    min_count = min(counts)
+    max_count = max(counts)
+    
+    # Create figure with single histogram
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    
+    # Histogram of counts
+    n_bins = min(30, max(10, num_classes // 5))
+    n, bins, patches = ax.hist(
         counts,
-        bins=min(20, len(counts) // 2) if len(counts) > 10 else len(counts),
+        bins=n_bins,
         alpha=0.7,
-        color="lightcoral",
-        edgecolor="darkred",
+        color="skyblue",
+        edgecolor="navy",
+        linewidth=1
     )
-    ax2.axvline(
+    
+    # Add statistical lines
+    ax.axvline(
         x=mean_count,
         color="red",
         linestyle="-",
         linewidth=2,
-        label=f"Mean: {mean_count:.1f}",
+        label=f"Mean: {mean_count:.1f}"
     )
-    ax2.axvline(
+    ax.axvline(
         x=median_count,
         color="green",
         linestyle="--",
         linewidth=2,
-        label=f"Median: {median_count:.1f}",
+        label=f"Median: {median_count:.1f}"
     )
-
-    ax2.set_xlabel("Number of Images per Class", fontsize=12)
-    ax2.set_ylabel("Frequency", fontsize=12)
-    ax2.set_title("Distribution of Image Counts", fontsize=14, fontweight="bold")
-    ax2.legend()
-    ax2.grid(True, alpha=0.3)
-
+    
+    # Add labels and title
+    ax.set_xlabel("Number of Samples per Class", fontsize=12)
+    ax.set_ylabel("Number of Classes", fontsize=12)
+    ax.set_title("Class Distribution Overview", fontsize=16, fontweight="bold", pad=20)
+    ax.legend(fontsize=11, loc='upper left')
+    ax.grid(True, alpha=0.3)
+    
+    # Add summary statistics as text box
+    stats_text = (
+        f"Dataset Summary:\n"
+        f"• Total Classes: {num_classes:,}\n"
+        f"• Total Samples: {total_samples:,}\n"
+        f"• Avg Samples/Class: {mean_count:.1f}\n"
+        f"• Std Deviation: {std_count:.1f}\n"
+        f"• Min Samples: {min_count}\n"
+        f"• Max Samples: {max_count}\n"
+        f"• Balance Ratio: {min_count/max_count:.3f}"
+    )
+    
+    # Position text box in upper right
+    ax.text(
+        0.98, 0.98, 
+        stats_text,
+        transform=ax.transAxes,
+        verticalalignment='top',
+        horizontalalignment='right',
+        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8),
+        fontsize=10,
+        fontfamily='monospace'
+    )
+    
     plt.tight_layout()
-
-    output_path = os.path.join(plotting_dir, "class_count_dist.png")
+    
+    # Save plot
+    output_path = os.path.join(plotting_dir, "class_distribution.png")
     plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close()
+    
+    # Print summary to console as well
+    print(f"\n{'='*50}")
+    print(f"CLASS DISTRIBUTION SUMMARY")
+    print(f"{'='*50}")
+    print(f"Total Classes: {num_classes:,}")
+    print(f"Total Samples: {total_samples:,}")
+    print(f"Average Samples per Class: {mean_count:.2f}")
+    print(f"Standard Deviation: {std_count:.2f}")
+    print(f"Range: {min_count} - {max_count} samples")
+    print(f"Balance Ratio (min/max): {min_count/max_count:.3f}")
+    print(f"{'='*50}\n")
 
 
 class Plotter:

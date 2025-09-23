@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import os 
 
 from datasets.val.base import ValDataset
 
@@ -35,6 +36,12 @@ def _faiss_ip_index(dim: int, use_gpu: bool = False):
         index = faiss.index_cpu_to_all_gpus(index)
     return index
 
+def _l2_normalize_rows_inplace(arr):
+    """Normalize rows of array in-place."""
+    norms = np.linalg.norm(arr, axis=1, keepdims=True)
+    norms[norms == 0] = 1  # Avoid division by zero
+    arr /= norms  # In-place division
+
 
 def compute_descriptors(
     model: nn.Module,
@@ -43,23 +50,38 @@ def compute_descriptors(
     batch_size: int = 32,
     num_workers: int = 4,
     pbar: bool = True,
+    mmap: bool = False,
+    feature_path: str = None 
 ) -> np.ndarray:
-    """
-    Compute L2-normalized descriptors for all images in `dataset`.
+    
+    n = len(dataset)
 
-    Args:
-        model: Torch module producing descriptors (N, D) or (tensor, ...).
-        dataset: Dataset yielding (image_tensor, index).
-        desc_dtype: Numpy dtype for the output descriptors (e.g., np.float16/32).
-        batch_size: DataLoader batch size.
-        num_workers: DataLoader workers.
-        pbar: Show progress bar.
-
-    Returns:
-        np.ndarray of shape (len(dataset), descriptor_dim), L2-normalized.
-    """
-    n = dataset.images_num if hasattr(dataset, "images_num") else len(dataset)
-    descriptors = np.zeros((n, model.descriptor_dim), dtype=desc_dtype)
+    if mmap: 
+        os.makedirs(os.path.dirname(feature_path), exist_ok=True)
+        
+        # Check if memory map file already exists and try to use it
+        if os.path.exists(feature_path):
+            try:
+                # Try to open existing memory map
+                existing_descriptors = np.memmap(feature_path, dtype=desc_dtype, mode="r")
+                
+                # Check if shape matches what we expect
+                expected_shape = (n, model.descriptor_dim)
+                if existing_descriptors.shape == expected_shape:
+                    print(f"Found existing memory map at {feature_path} with correct shape {expected_shape}")
+                    return existing_descriptors
+                else:
+                    print(f"Existing memory map shape {existing_descriptors.shape} doesn't match expected {expected_shape}")
+                    print("Creating new memory map...")
+            except Exception as e:
+                print(f"Error reading existing memory map: {e}")
+                print("Creating new memory map...")
+        
+        # Create new memory map (either file doesn't exist or had issues)
+        descriptors = np.memmap(feature_path, dtype=desc_dtype, mode="w+", 
+                               shape=(n, model.descriptor_dim))
+    else:
+        descriptors = np.zeros((n, model.descriptor_dim), dtype=desc_dtype)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device).eval()
@@ -97,8 +119,16 @@ def compute_descriptors(
             batch_desc = _as_numpy(out, desc_dtype)
             descriptors[idx.numpy()] = batch_desc
 
-    # Row-wise L2 normalization (safe)
-    descriptors = _l2_normalize_rows(descriptors)
+    if mmap:
+        # Apply normalization in-place to preserve in file
+        _l2_normalize_rows_inplace(descriptors)  # Must modify in-place!
+        descriptors.flush()
+        # Reopen as read-only
+        descriptors = np.memmap(feature_path, dtype=desc_dtype, mode="r", 
+                               shape=(n, model.descriptor_dim))
+    else:
+        descriptors = _l2_normalize_rows(descriptors)
+    
     return descriptors
 
 

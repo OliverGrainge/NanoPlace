@@ -11,10 +11,12 @@ from pyproj import Transformer
 from datasets.train.pipeline.aggroclust import AggroClust
 from datasets.train.pipeline.base import CurationStep
 from datasets.train.pipeline.embeddings import Embeddings
-from datasets.train.pipeline.intraclassmadfilter import IntraClassMADFilter
-from datasets.train.pipeline.minnumperclass import MinNumPerClass
-from datasets.train.pipeline.randomfilter import RandomFilter
+from datasets.train.pipeline.greedyintraclassselection import GreedyIntraClassSelection
+from datasets.train.pipeline.randomclassselection import RandomClassSelection
+from datasets.train.pipeline.randominstanceselection import RandomInstanceSelection
 from datasets.train.utils import read_gmberton_utm, read_images
+from datasets.train.pipeline.minperclass import MinPerClass
+from datasets.train.pipeline.confusableclassselection import ConfusableClassSelection
 
 
 def lat_lon_to_utm(row):
@@ -164,7 +166,10 @@ class NanoPlaceDataPipeline(ABC):
         # dataconfig['easting'] = dataconfig.apply(lambda row: lat_lon_to_utm(row)[0], axis=1)
         # dataconfig['northing'] = dataconfig.apply(lambda row: lat_lon_to_utm(row)[1], axis=1)
         if self.debug:
-            dataconfig = dataconfig.sample(n=500).reset_index(drop=True)
+            class_ids = dataconfig["class_id"].unique()
+            class_ids = np.random.choice(class_ids, size=100, replace=False)
+            dataconfig = dataconfig[dataconfig["class_id"].isin(class_ids)]
+        # Assign a unique image_id column from 0 to len(dataconfig)-1 (not as index)
         return dataconfig
 
     def run(self) -> Tuple[pd.DataFrame, np.ndarray]:
@@ -208,6 +213,7 @@ class NanoPlaceDataPipeline(ABC):
         self.print_summary()  # Add this at the end
         self._save_config(dataconfig)
         return dataconfig, descriptors
+
 
     def name(self) -> str:
         desc = "NanoPlaceDataPipeline(\n  steps=["

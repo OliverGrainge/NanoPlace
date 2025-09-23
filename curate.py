@@ -13,32 +13,41 @@ from datasets.train.analyzer import (
     IntraUTMDist,
     NanoPlaceAnalyzer,
 )
+
 from datasets.train.pipeline import (
     AggroClust,
     Embeddings,
-    IntraClassMADFilter,
-    MinNumPerClass,
     NanoPlaceDataPipeline,
-    RandomFilter,
+    RandomClassSelection, 
+    RandomInstanceSelection,
+    GreedyIntraClassSelection,
+    MinPerClass,
+    ConfusableClassSelection,
 )
 
 
 def get_curation_step(name: str, **kwargs):
+    name = name.lower()
     if name == "aggroclust":
         return AggroClust(**kwargs)
     elif name == "embeddings":
         return Embeddings(**kwargs)
-    elif name == "intraclassmadfilter":
-        return IntraClassMADFilter(**kwargs)
-    elif name == "minnumperclass":
-        return MinNumPerClass(**kwargs)
-    elif name == "randomfilter":
-        return RandomFilter(**kwargs)
+    elif name == "randomclassselection":
+        return RandomClassSelection(**kwargs)
+    elif name == "randominstanceselection":
+        return RandomInstanceSelection(**kwargs)
+    elif name == "greedyintraclassselection":
+        return GreedyIntraClassSelection(**kwargs)
+    elif name == "minperclass":
+        return MinPerClass(**kwargs)
+    elif name == "confusableclassselection":
+        return ConfusableClassSelection(**kwargs)
     else:
         raise ValueError(f"Curation step {name} not found")
 
 
 def get_analyzer_step(name: str):
+    name = name.lower()
     if name == "utmdist":
         return IntraUTMDist()
     elif name == "interutmdist":
